@@ -1,5 +1,6 @@
 package com.elfmcys.yesstevemodel.client.gui.button;
 
+import net.minecraft.client.InputType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
@@ -11,8 +12,7 @@ import org.lwjgl.glfw.GLFW;
 import java.text.DecimalFormat;
 
 public class RangedSliderWidget extends AbstractSliderButton {
-
-    private static final ResourceLocation SLIDER_TEXTURE = new ResourceLocation("textures/gui/slider.png");
+    protected static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("minecraft", "textures/gui/slider.png");
 
     protected Component prefix;
     protected Component suffix;
@@ -21,6 +21,7 @@ public class RangedSliderWidget extends AbstractSliderButton {
     protected double maxValue;
     protected double stepSize;
     protected boolean drawString;
+    private boolean canChangeValue;
 
     private final DecimalFormat format;
 
@@ -33,34 +34,34 @@ public class RangedSliderWidget extends AbstractSliderButton {
         this.stepSize = Math.abs(stepSize);
         this.value = this.snapToNearest((currentValue - minValue) / (maxValue - minValue));
         this.drawString = drawString;
+
         if (stepSize == 0D) {
-            int p = Math.min(precision, 4);
+            precision = Math.min(precision, 4);
             StringBuilder builder = new StringBuilder("0");
-            if (p > 0) builder.append('.');
-            while (p-- > 0) builder.append('0');
+            if (precision > 0) builder.append('.');
+            while (precision-- > 0) builder.append('0');
             this.format = new DecimalFormat(builder.toString());
         } else if (Mth.equal(this.stepSize, Math.floor(this.stepSize))) {
             this.format = new DecimalFormat("0");
         } else {
             this.format = new DecimalFormat(Double.toString(this.stepSize).replaceAll("\\d", "0"));
         }
+
         this.updateMessage();
+    }
+
+    public RangedSliderWidget(int x, int y, int width, int height, Component prefix, Component suffix, double minValue, double maxValue, double currentValue, boolean drawString) {
+        this(x, y, width, height, prefix, suffix, minValue, maxValue, currentValue, 1D, 0, drawString);
     }
 
     public double getValue() {
         return this.value * (maxValue - minValue) + minValue;
     }
 
-    public long getValueLong() {
-        return Math.round(this.getValue());
-    }
-
-    public int getValueInt() {
-        return (int) this.getValueLong();
-    }
-
-    public void setValue(double newValue) {
-        this.value = this.snapToNearest((newValue - this.minValue) / (this.maxValue - this.minValue));
+    public void setValue(double value) {
+        double oldValue = this.value;
+        this.value = this.snapToNearest((value - this.minValue) / (this.maxValue - this.minValue));
+        if (!Mth.equal(oldValue, this.value)) this.applyValue();
         this.updateMessage();
     }
 
@@ -80,16 +81,27 @@ public class RangedSliderWidget extends AbstractSliderButton {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        boolean leftDir = keyCode == GLFW.GLFW_KEY_LEFT;
-        if (leftDir || keyCode == GLFW.GLFW_KEY_RIGHT) {
-            if (this.minValue > this.maxValue) leftDir = !leftDir;
-            float dir = leftDir ? -1F : 1F;
-            if (stepSize <= 0D) {
-                this.setSliderValue(this.value + (dir / (this.width - 8)));
-            } else {
-                this.setValue(this.getValue() + dir * this.stepSize);
+    public void setFocused(boolean focused) {
+        super.setFocused(focused);
+        if (!focused) {
+            this.canChangeValue = false;
+        } else {
+            InputType inputType = Minecraft.getInstance().getLastInputType();
+            if (inputType == InputType.MOUSE || inputType == InputType.KEYBOARD_TAB) {
+                this.canChangeValue = true;
             }
+        }
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        boolean flag = keyCode == GLFW.GLFW_KEY_LEFT;
+        if (flag || keyCode == GLFW.GLFW_KEY_RIGHT) {
+            if (this.minValue > this.maxValue) flag = !flag;
+            float f = flag ? -1F : 1F;
+            if (stepSize <= 0D) this.setSliderValue(this.value + (f / (this.width - 8)));
+            else this.setValue(this.getValue() + f * this.stepSize);
+            return true;
         }
         return false;
     }
@@ -98,56 +110,85 @@ public class RangedSliderWidget extends AbstractSliderButton {
         this.setSliderValue((mouseX - (this.getX() + 4)) / (this.width - 8));
     }
 
-    private void setSliderValue(double percent) {
+    private void setSliderValue(double value) {
         double oldValue = this.value;
-        this.value = this.snapToNearest(percent);
-        if (!Mth.equal(oldValue, this.value)) {
-            this.applyValue();
-        }
+        this.value = this.snapToNearest(value);
+        if (!Mth.equal(oldValue, this.value)) this.applyValue();
         this.updateMessage();
     }
 
-    private double snapToNearest(double percent) {
-        if (stepSize <= 0D) {
-            return Mth.clamp(percent, 0D, 1D);
-        }
-        double snapped = Mth.lerp(Mth.clamp(percent, 0D, 1D), this.minValue, this.maxValue);
-        snapped = stepSize * Math.round(snapped / stepSize);
-        if (this.minValue > this.maxValue) {
-            snapped = Mth.clamp(snapped, this.maxValue, this.minValue);
-        } else {
-            snapped = Mth.clamp(snapped, this.minValue, this.maxValue);
-        }
-        return Mth.inverseLerp(snapped, this.minValue, this.maxValue);
+    private double snapToNearest(double value) {
+        if (stepSize <= 0D) return Mth.clamp(value, 0D, 1D);
+        value = Mth.lerp(Mth.clamp(value, 0D, 1D), this.minValue, this.maxValue);
+        value = (stepSize * Math.round(value / stepSize));
+        if (this.minValue > this.maxValue) value = Mth.clamp(value, this.maxValue, this.minValue);
+        else value = Mth.clamp(value, this.minValue, this.maxValue);
+        return Mth.map(value, this.minValue, this.maxValue, 0D, 1D);
     }
 
     @Override
     protected void updateMessage() {
-        if (this.drawString) {
-            this.setMessage(Component.literal("").append(prefix).append(this.getValueString()).append(suffix));
-        } else {
-            this.setMessage(Component.empty());
-        }
+        if (this.drawString) this.setMessage(Component.literal("").append(prefix).append(this.getValueString()).append(suffix));
+        else this.setMessage(Component.empty());
     }
 
     @Override
-    protected void applyValue() {
+    protected void applyValue() {}
+
+    protected int getTextureY() {
+        int i = this.isFocused() && !this.canChangeValue ? 1 : 0;
+        return i * 20;
     }
 
-    protected int textureBaseY() {
-        return 46 + (this.isHovered() ? 20 : 0);
-    }
-
-    protected int handleTextureBaseY() {
-        return 46 + 20 + (this.isHovered() ? 20 : 0);
+    protected int getHandleTextureY() {
+        int i = !this.isHovered() && !this.canChangeValue ? 2 : 3;
+        return i * 20;
     }
 
     @Override
     public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        Minecraft mc = Minecraft.getInstance();
-        guiGraphics.blit(SLIDER_TEXTURE, this.getX(), this.getY(), 0, textureBaseY(), this.width, this.height, 200, 20);
-        guiGraphics.blit(SLIDER_TEXTURE, this.getX() + (int) (this.value * (double) (this.width - 8)), this.getY(), 0, handleTextureBaseY(), 8, this.height, 200, 20);
-        int color = 16777215 | Mth.ceil(this.alpha * 255.0F) << 24;
-        guiGraphics.drawCenteredString(mc.font, this.getMessage(), this.getX() + this.width / 2, this.getY() + (this.height - 8) / 2, color);
+        final Minecraft mc = Minecraft.getInstance();
+
+        blitWithBorder(guiGraphics, SLIDER_LOCATION, this.getX(), this.getY(), 0, getTextureY(), this.width, this.height, 200, 20, 2, 3, 2, 2);
+
+        int handleX = this.getX() + (int)(this.value * (double)(this.width - 8));
+        blitWithBorder(guiGraphics, SLIDER_LOCATION, handleX, this.getY(), 0, getHandleTextureY(), 8, this.height, 200, 20, 2, 3, 2, 2);
+
+        int color = this.active ? 16777215 : 10526880;
+        renderScrollingString(guiGraphics, mc.font, 2, color | Mth.ceil(this.alpha * 255.0F) << 24);
+    }
+
+    //https://github.com/MinecraftForge/MinecraftForge/blob/26.1.2/src/main/java/net/minecraftforge/client/extensions/IForgeGuiGraphicsExtractor.java#L71
+    protected void blitWithBorder(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int u, int v, int width, int height, int textureWidth, int textureHeight, int topBorder, int bottomBorder, int leftBorder, int rightBorder) {
+        int fillerWidth = textureWidth - leftBorder - rightBorder;
+        int fillerHeight = textureHeight - topBorder - bottomBorder;
+        int canvasWidth = width - leftBorder - rightBorder;
+        int canvasHeight = height - topBorder - bottomBorder;
+        int xPasses = canvasWidth / fillerWidth;
+        int remainderWidth = canvasWidth % fillerWidth;
+        int yPasses = canvasHeight / fillerHeight;
+        int remainderHeight = canvasHeight % fillerHeight;
+
+        guiGraphics.blit(texture, x, y, u, v, leftBorder, topBorder);
+        guiGraphics.blit(texture, x + leftBorder + canvasWidth, y, u + leftBorder + fillerWidth, v, rightBorder, topBorder);
+        guiGraphics.blit(texture, x, y + topBorder + canvasHeight, u, v + topBorder + fillerHeight, leftBorder, bottomBorder);
+        guiGraphics.blit(texture, x + leftBorder + canvasWidth, y + topBorder + canvasHeight, u + leftBorder + fillerWidth, v + topBorder + fillerHeight, rightBorder, bottomBorder);
+
+        for (int i = 0; i < xPasses + (remainderWidth > 0 ? 1 : 0); i++) {
+            int drawWidth = (i == xPasses ? remainderWidth : fillerWidth);
+            guiGraphics.blit(texture, x + leftBorder + (i * fillerWidth), y, u + leftBorder, v, drawWidth, topBorder);
+            guiGraphics.blit(texture, x + leftBorder + (i * fillerWidth), y + topBorder + canvasHeight, u + leftBorder, v + topBorder + fillerHeight, drawWidth, bottomBorder);
+
+            for (int j = 0; j < yPasses + (remainderHeight > 0 ? 1 : 0); j++) {
+                int drawHeight = (j == yPasses ? remainderHeight : fillerHeight);
+                guiGraphics.blit(texture, x + leftBorder + (i * fillerWidth), y + topBorder + (j * fillerHeight), u + leftBorder, v + topBorder, drawWidth, drawHeight);
+            }
+        }
+
+        for (int j = 0; j < yPasses + (remainderHeight > 0 ? 1 : 0); j++) {
+            int drawHeight = (j == yPasses ? remainderHeight : fillerHeight);
+            guiGraphics.blit(texture, x, y + topBorder + (j * fillerHeight), u, v + topBorder, leftBorder, drawHeight);
+            guiGraphics.blit(texture, x + leftBorder + canvasWidth, y + topBorder + (j * fillerHeight), u + leftBorder + fillerWidth, v + topBorder, rightBorder, drawHeight);
+        }
     }
 }

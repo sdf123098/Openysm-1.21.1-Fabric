@@ -5,26 +5,32 @@ import com.elfmcys.yesstevemodel.util.YSMMessageFormatter;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
+import dev.architectury.event.events.client.ClientCommandRegistrationEvent;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 public class CacheCommand {
-    public static LiteralArgumentBuilder<CommandSourceStack> register() {
-        return Commands.literal("cache").then(Commands.literal("dump").executes(CacheCommand::dumpCache));
+
+    public static LiteralArgumentBuilder<ClientCommandRegistrationEvent.ClientCommandSourceStack> register() {
+        return LiteralArgumentBuilder.<ClientCommandRegistrationEvent.ClientCommandSourceStack>literal("cache")
+                .then(LiteralArgumentBuilder.<ClientCommandRegistrationEvent.ClientCommandSourceStack>literal("dump")
+                        .executes(CacheCommand::dumpCache));
     }
 
-    private static int dumpCache(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack sourceStack = context.getSource();
+    private static int dumpCache(CommandContext<ClientCommandRegistrationEvent.ClientCommandSourceStack> context) {
+        var player = Minecraft.getInstance().player;
+        if (player == null) {
+            return 0;
+        }
 
-        sourceStack.sendSystemMessage(YSMMessageFormatter.withPrefix(Component.literal("开始解析并导出客户端缓存模型...")));
+        player.displayClientMessage(YSMMessageFormatter.withPrefix(Component.literal("开始解析并导出客户端缓存模型...")), false);
 
         ClientModelManager.exportAllCachedModels(null, exportResult -> {
             if (exportResult.getMessage() != null) {
-                sourceStack.sendSystemMessage(YSMMessageFormatter.withPrefix(exportResult.getMessage()));
+                player.displayClientMessage(YSMMessageFormatter.withPrefix(exportResult.getMessage()), false);
             }
             if (exportResult.isSuccess()) {
-                sourceStack.sendSystemMessage(Component.translatable("commands.yes_steve_model.export.success", exportResult.getFilePath()));
+                player.displayClientMessage(Component.translatable("commands.yes_steve_model.export.success", exportResult.getFilePath()), false);
             }
         });
 

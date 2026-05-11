@@ -83,7 +83,7 @@ public class OculusCompat {
         private PBRTextureLoaderV1() {
         }
 
-        public void load(OuterFileTexture texture, ResourceManager resourceManager, PBRTextureConsumer pBRTextureConsumer) {
+        public void load(OuterFileTexture texture, ResourceManager resourceManager, PBRTextureLoader.PBRTextureConsumer pBRTextureConsumer) {
             AbstractTexture abstractTexture = texture.getSuffixTextures().get(ShadersTextureType.NORMAL);
             if (abstractTexture != null) {
                 pBRTextureConsumer.acceptNormalTexture(abstractTexture);
@@ -106,7 +106,7 @@ public class OculusCompat {
         private PBRTextureLoaderV2() {
         }
 
-        public void load(OuterFileTexture texture, ResourceManager resourceManager, PBRTextureConsumer pBRTextureConsumer) {
+        public void load(OuterFileTexture texture, ResourceManager resourceManager, net.irisshaders.iris.texture.pbr.loader.PBRTextureLoader.PBRTextureConsumer pBRTextureConsumer) {
             AbstractTexture abstractTexture = texture.getSuffixTextures().get(ShadersTextureType.NORMAL);
             if (abstractTexture != null) {
                 pBRTextureConsumer.acceptNormalTexture(abstractTexture);

@@ -1,29 +1,35 @@
 package com.elfmcys.yesstevemodel.resource;
 
 import com.elfmcys.yesstevemodel.resource.pojo.RawYsmModel;
-import com.google.gson.*;
-import org.apache.commons.codec.digest.DigestUtils;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-
 import rip.ysm.imagestream.avif.AvifDecoder;
 import rip.ysm.imagestream.jpeg.JpegDecoder;
 import rip.ysm.imagestream.webp.WebpDecoder;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.stream.Stream;
-import javax.imageio.ImageIO;
+
+import static com.elfmcys.yesstevemodel.util.DigestUtil.sha256Hex;
+import static org.apache.commons.codec.digest.DigestUtils.md5Hex;
 
 public class YSMFolderDeserializer implements AutoCloseable {
     private final Map<String, String> readFilesMd5Map = new TreeMap<>();
@@ -83,7 +89,7 @@ public class YSMFolderDeserializer implements AutoCloseable {
             }
 
             if (data != null && !readFilesMd5Map.containsKey(normalizedPath)) {
-                readFilesMd5Map.put(normalizedPath, md5Hex(data)); // fabric服务端找不到apache codec DigestUtils
+                readFilesMd5Map.put(normalizedPath, md5Hex(data));
             }
             return data;
 
@@ -1237,29 +1243,5 @@ public class YSMFolderDeserializer implements AutoCloseable {
                 }
             }
         }
-    }
-
-
-    // fabric WHY java.lang.NoClassDefFoundError: org/apache/commons/codec/digest/DigestUtils
-    static final char[] DIGITS_LOWER = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-    public static String md5Hex(byte[] data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("MD5");
-            return encodeHex(digest.digest(data));
-        } catch (NoSuchAlgorithmException e) {throw new RuntimeException(e);}
-    }
-    public static String sha256Hex(byte[] data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return encodeHex(digest.digest(data));
-        } catch (NoSuchAlgorithmException e) {throw new RuntimeException(e);}
-    }
-    private static String encodeHex(byte[] hashBytes) {
-        char[] out = new char[hashBytes.length << 1];
-        for (int i = 0, j = 0; i < hashBytes.length; i++) {
-            out[j++] = DIGITS_LOWER[(0xF0 & hashBytes[i]) >>> 4];
-            out[j++] = DIGITS_LOWER[0x0F & hashBytes[i]];
-        }
-        return new String(out);
     }
 }

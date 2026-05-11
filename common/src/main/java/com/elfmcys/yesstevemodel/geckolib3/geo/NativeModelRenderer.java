@@ -5,37 +5,32 @@ package com.elfmcys.yesstevemodel.geckolib3.geo;
 import com.elfmcys.yesstevemodel.NativeLibLoader;
 import com.elfmcys.yesstevemodel.client.renderer.ModelPreviewRenderer;
 import com.elfmcys.yesstevemodel.config.GeneralConfig;
-import com.elfmcys.yesstevemodel.geckolib3.geo.render.built.*;
+import com.elfmcys.yesstevemodel.geckolib3.geo.render.built.GeoModel;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.LightTexture;
-import org.joml.*;
-import org.lwjgl.system.MemoryUtil;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 import rip.ysm.compat.oculus.OculusCompat;
 import rip.ysm.compat.optifine.OptiFineDetector;
-
-import java.lang.Math;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
 
 public class NativeModelRenderer {
     private static final Matrix4f projectionModelViewMatrix = new Matrix4f();
 
     public static void renderMesh(VertexConsumer buffer, PoseStack.Pose pose, GeoModel model, float[] boneParams, float[] stateBuffer, int textureIndex, int renderPartMask, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
         OculusCompat.updatePBRState();
-        boolean isCompatMode = OptiFineDetector.isOptifinePresent() || GeneralConfig.USE_COMPATIBILITY_RENDERER.get();
         RenderSystem.getProjectionMatrix().mul(RenderSystem.getModelViewMatrix(), projectionModelViewMatrix);
         boolean isPreview = ModelPreviewRenderer.isPreview() || ModelPreviewRenderer.isExtraPlayer();
-        if (/*NativeLibLoader.isLoaded()*/false) { // WIP: SIMD MODEL RENDER
+        if (NativeLibLoader.isLoaded() && !GeneralConfig.USE_COMPATIBILITY_RENDERER.get()) { // WIP: SIMD MODEL RENDER
 
             nativeRenderModel(
                     buffer,
                     pose,
                     projectionModelViewMatrix,
-                    isCompatMode,
+                    OptiFineDetector.isOptifinePresent(),
                     model,
                     boneParams,
                     stateBuffer,
@@ -51,7 +46,7 @@ public class NativeModelRenderer {
                     buffer,
                     pose,
                     projectionModelViewMatrix,
-                    isCompatMode,
+                    OptiFineDetector.isOptifinePresent(),
                     model,
                     boneParams,
                     stateBuffer,
@@ -210,12 +205,12 @@ public class NativeModelRenderer {
 
     private static final float[] matrixTransferArray = new float[48];
     @SuppressWarnings("unused") // TODO: native中直接往VertexConsumer中的buffer写入顶点
-    public static void submitVertices(VertexConsumer vertexConsumer, int vertexCount, float[] fArr, int[] iArr) {
+    public static void submitVertices(Object v, int vertexCount, float[] fArr, int[] iArr) {
         int floatIndex = 0;
         int intIndex = 0;
 
         for (int i = 0; i < vertexCount; i++) {
-            vertexConsumer.vertex(
+            ((VertexConsumer)v).vertex(
                     // position
                     fArr[floatIndex + 0], fArr[floatIndex + 1], fArr[floatIndex + 2],
                     // rgba

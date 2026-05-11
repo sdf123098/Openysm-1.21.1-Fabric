@@ -32,7 +32,8 @@ public class AnimationSlider extends RangedSliderWidget implements ISpecialWidge
         this.controllerName = controllerName;
     }
 
-    public void applyValue() {
+    @Override
+    protected void applyValue() {
         try {
             String str = this.controllerName + "=" + getValue();
             this.model.executeExpression(GeckoLibCache.parseSimpleExpression(str), true, false, null);
@@ -44,14 +45,18 @@ public class AnimationSlider extends RangedSliderWidget implements ISpecialWidge
         }
     }
 
+    @Override
     public String getValueString() {
         return DECIMAL_FORMAT.format(getValue());
     }
 
+    @Override
     public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         Minecraft minecraft = Minecraft.getInstance();
-        guiGraphics.blit(ROULETTE_TEXTURE, getX(), getY(), 0, textureBaseY() + 24, this.width, this.height, 200, 15);
-        guiGraphics.blit(ROULETTE_TEXTURE, getX() + ((int) (this.value * (this.width - 8))), getY(), 0, handleTextureBaseY() + 24, 8, this.height, 200, 15);
+        blitWithBorder(guiGraphics, ROULETTE_TEXTURE, getX(), getY(), 0, getTextureY() + 24, this.width, this.height, 200, 15, 2, 3, 2, 2);
+        int handleX = getX() + (int) (this.value * (this.width - 8));
+        blitWithBorder(guiGraphics, ROULETTE_TEXTURE, handleX, getY(), 0, getHandleTextureY() + 24, 8, this.height, 200, 15, 2, 3, 2, 2);
+
         int color = 16777215 | (Mth.ceil(this.alpha * 255.0f) << 24);
         guiGraphics.drawCenteredString(minecraft.font, this.getMessage(), getX() + this.width / 2, getY() + (this.height - 8) / 2, color);
     }

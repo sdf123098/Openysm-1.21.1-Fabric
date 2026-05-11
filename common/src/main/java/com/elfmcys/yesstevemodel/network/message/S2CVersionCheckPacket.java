@@ -18,7 +18,15 @@ public class S2CVersionCheckPacket {
     }
 
     public static S2CVersionCheckPacket decode(FriendlyByteBuf buf) {
-        return new S2CVersionCheckPacket(buf.readUtf());
+        String version = buf.readUtf();
+        if(buf.readableBytes() > 0){
+            String brand = buf.readUtf();
+            if(brand.equals("open_ysm:v1")){
+                ClientModelManager.setOysmServer(true);
+                ClientModelManager.setAllowUpload(buf.readBoolean());
+            }
+        }
+        return new S2CVersionCheckPacket(version);
     }
 
     public static void encode(S2CVersionCheckPacket message, FriendlyByteBuf buf) {

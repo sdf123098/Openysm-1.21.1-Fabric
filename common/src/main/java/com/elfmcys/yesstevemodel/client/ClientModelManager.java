@@ -1,7 +1,10 @@
 package com.elfmcys.yesstevemodel.client;
 
+import com.elfmcys.yesstevemodel.NativeLibLoader;
 import com.elfmcys.yesstevemodel.YesSteveModel;
 import com.elfmcys.yesstevemodel.client.model.ModelAssembly;
+import com.elfmcys.yesstevemodel.client.model.ProjectileModelBundle;
+import com.elfmcys.yesstevemodel.client.model.VehicleModelBundle;
 import com.elfmcys.yesstevemodel.client.upload.UploadManager;
 import com.elfmcys.yesstevemodel.client.model.ModelAssemblyFactory;
 import com.elfmcys.yesstevemodel.client.gui.IGuiWidget;
@@ -69,6 +72,8 @@ public class ClientModelManager {
     private static final ConcurrentLinkedQueue<Pair<ModelAssembly, String>> pendingModelQueue = new ConcurrentLinkedQueue<>();
     private static final WeakHashMap<IGuiWidget, Object> guiWidgets = new WeakHashMap<>();
     private static final SyncStatus syncState = new SyncStatus();
+    private static boolean isOysmServer = false;
+    private static boolean allowUpload = false;
 
     public enum SyncState {
         WAITING, LOADING, IDLE, PREPARING, SYNCING
@@ -224,6 +229,11 @@ public class ClientModelManager {
         int unkSize = buf.readVarInt();
         onSyncProgress(unkSize);
 
+        Set<String> validServerModelIds = new HashSet<>();
+        List<String> previousModelIds = new ArrayList<>();
+        List<String> updatedModelIds = new ArrayList<>();
+        List<Boolean> isModelReadyList = new ArrayList<>();
+
         for (int i = 0; i < unkSize; i++) {
             long hash1 = buf.readVarLong();
             long hash2 = buf.readVarLong();
@@ -238,15 +248,25 @@ public class ClientModelManager {
 
             ServerModelContext ctx = new ServerModelContext(hash1, hash2, modelId, isAuth, isCustomSkinModel, version);
             serverModels.put(ctx.uuid, ctx);
+            validServerModelIds.add(modelId);
 
             File cachedFile = localCacheMap.get(ctx.uuid);
+            boolean isFileValid = YSMClientCache.verifyFileContent(cachedFile, hash1, hash2);
 
-            if (YSMClientCache.verifyFileContent(cachedFile, hash1, hash2)) {
+            boolean alreadyInMemory = modelAssemblyMap != null && modelAssemblyMap.containsKey(modelId);
+
+            if (isFileValid) {
                 YesSteveModel.LOGGER.info("[YSM] Cache HIT & Validated: " + ctx.uuid);
-                // 命中缓存
-                byte[] fileBytes = Files.readAllBytes(cachedFile.toPath());
-                byte[] decompressed = YsmCrypt.read(fileBytes, clientKey);
-                parseAndLoadModel(decompressed, modelId, isAuth);
+                if (alreadyInMemory) {
+                    previousModelIds.add(modelId);
+                    updatedModelIds.add(modelId);
+                    isModelReadyList.add(isAuth);
+                } else {
+                    // 命中缓存
+                    byte[] fileBytes = Files.readAllBytes(cachedFile.toPath());
+                    byte[] decompressed = YsmCrypt.read(fileBytes, clientKey);
+                    parseAndLoadModel(decompressed, modelId, isAuth);
+                }
             } else {
                 YesSteveModel.LOGGER.info("[YSM] Cache MISS or Invalid: " + ctx.uuid + " -> Requesting...");
                 modelsToRequest.add(mHash);
@@ -296,24 +316,33 @@ public class ClientModelManager {
             onModelPacksReceived(parsedPacks.toArray(new ModelPackData[0]));
         }
 
-        Set<String> validServerModelIds = new HashSet<>();
-        for (ServerModelContext ctx : serverModels.values()) {
-            validServerModelIds.add(ctx.modelId);
-        }
         List<String> modelsToRemove = new ArrayList<>();
+        if (modelAssemblyMap != null) {
+            for (String loadedId : modelAssemblyMap.keySet()) {
+                if ("default".equals(loadedId)) continue;
 
-//        if (modelAssemblyMap != null) {
-//            for (String loadedId : modelAssemblyMap.keySet()) {
-//                if (!validServerModelIds.contains(loadedId) && !"default".equals(loadedId)) {
-//                    modelsToRemove.add(loadedId);
-//                }
-//            }
-//        }
-//
-//        if (!modelsToRemove.isEmpty()) {
-//            onModelContextsUpdated(modelsToRemove.toArray(new String[0]), null, null, null);
-//            YesSteveModel.LOGGER.info("[YSM] Cleaned up {} outdated models during sync.", modelsToRemove.size());
-//        }
+                if (!validServerModelIds.contains(loadedId)) {
+                    modelsToRemove.add(loadedId);
+                } else if (modelsToRequest.stream().anyMatch(h -> serverModels.containsKey(new UUID(h.hash1, h.hash2)) && serverModels.get(new UUID(h.hash1, h.hash2)).modelId.equals(loadedId))) {
+                    modelsToRemove.add(loadedId);
+                }
+            }
+        }
+
+        if (!modelsToRemove.isEmpty() || !previousModelIds.isEmpty()) {
+            boolean[] readyArr = new boolean[isModelReadyList.size()];
+            for (int j = 0; j < isModelReadyList.size(); j++) {
+                readyArr[j] = isModelReadyList.get(j);
+            }
+
+            onModelContextsUpdated(
+                    modelsToRemove.isEmpty() ? null : modelsToRemove.toArray(new String[0]),
+                    previousModelIds.isEmpty() ? null : previousModelIds.toArray(new String[0]),
+                    updatedModelIds.isEmpty() ? null : updatedModelIds.toArray(new String[0]),
+                    readyArr
+            );
+            YesSteveModel.LOGGER.info("[YSM] Cleaned up {} outdated models and updated {} existing models during sync.", modelsToRemove.size(), previousModelIds.size());
+        }
 
         syncStep = 3;
         pendingModelsCount = modelsToRequest.size();
@@ -455,19 +484,6 @@ public class ClientModelManager {
 
         serverModels.clear();
 
-        Map<String, ModelAssembly> oldModels = modelAssemblyMap;
-        if (oldModels != null && !oldModels.isEmpty()) {
-            Minecraft.getInstance().execute(() -> {
-                for (ModelAssembly model : oldModels.values()) {
-                    if (model != null) {
-                        for (AbstractTexture tex : model.getTextures()) {
-                            UploadManager.removeTexture(tex);
-                        }
-                    }
-                }
-            });
-        }
-
         Map<String, ModelPackData> oldPreviews = modelPackMap;
         if (oldPreviews != null && !oldPreviews.isEmpty()) {
             for (ModelPackData preview : oldPreviews.values()) {
@@ -480,9 +496,7 @@ public class ClientModelManager {
             }
         }
 
-        modelAssemblyMap = Object2ReferenceMaps.emptyMap();
         modelPackMap = new Object2ReferenceOpenHashMap<>();
-//        localModelContext = null;
         pendingModelCallback = null;
         pendingModelQueue.clear();
 
@@ -562,11 +576,21 @@ public class ClientModelManager {
     }
 
     public static void resetSync() {
+        isOysmServer = false;
+        allowUpload = false;
         processServerData(null);
         NetworkHandler.resetClientHandshake();
         Minecraft.getInstance().execute(() -> {
             syncState.setState(SyncState.WAITING);
         });
+    }
+
+    public static boolean isAllowUpload() {
+        return allowUpload;
+    }
+
+    public static boolean isOysmServer() {
+        return isOysmServer;
     }
 
     private static void sendModelFile(ByteBuffer byteBuffer) {
@@ -663,6 +687,16 @@ public class ClientModelManager {
                     for (ModelAssembly assembly : removed) {
                         for (AbstractTexture tex : assembly.getTextures())
                             UploadManager.removeTexture(tex);
+                        if(NativeLibLoader.isLoaded()) {
+                            for (Map.Entry<ResourceLocation, ProjectileModelBundle> entry : assembly.getProjectileModels().entrySet()) {
+                                entry.getValue().getModel().freeNativeCache();
+                            }
+                            for (Map.Entry<ResourceLocation, VehicleModelBundle> entry : assembly.getVehicleModels().entrySet()) {
+                                entry.getValue().getModel().freeNativeCache();
+                            }
+                            assembly.getAnimationBundle().getMainModel().freeNativeCache();
+                            assembly.getAnimationBundle().getArmModel().freeNativeCache();
+                        }
                     }
                 });
             }
@@ -755,6 +789,14 @@ public class ClientModelManager {
             syncState.setState(SyncState.IDLE);
             forEachGuiWidget(IGuiWidget::onSyncComplete);
         });
+    }
+
+    public static void setAllowUpload(boolean allowUpload) {
+        ClientModelManager.allowUpload = allowUpload;
+    }
+
+    public static void setOysmServer(boolean isOysmServer) {
+        ClientModelManager.isOysmServer = isOysmServer;
     }
 
     private static void onSyncError(@Nullable Object obj) {

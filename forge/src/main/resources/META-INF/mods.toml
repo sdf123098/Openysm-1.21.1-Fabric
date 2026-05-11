@@ -7,11 +7,11 @@ license = "MIT"
 modId = "yes_steve_model"
 version = "${version}"
 displayName = "Yes Steve Model"
-authors = "TartaricAcid"
+authors = "Tianjin Accessible Care Innovation Development Co., Ltd."
 description = '''
 
 '''
-#logoFile = ""
+logoFile = "yesstevemodel.png"
 
 [[dependencies.yes_steve_model]]
 modId = "forge"

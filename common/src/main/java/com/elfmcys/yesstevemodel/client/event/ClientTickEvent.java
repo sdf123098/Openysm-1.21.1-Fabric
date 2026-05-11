@@ -4,6 +4,7 @@ import com.elfmcys.yesstevemodel.YesSteveModel;
 import com.elfmcys.yesstevemodel.audio.ObjectPool;
 import com.elfmcys.yesstevemodel.capability.PlayerCapability;
 import com.elfmcys.yesstevemodel.client.ClientModelManager;
+import com.elfmcys.yesstevemodel.client.upload.ModelUploadSession;
 import com.elfmcys.yesstevemodel.client.upload.UploadManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -28,6 +29,7 @@ public final class ClientTickEvent {
         }
         tickCount++;
         UploadManager.processPendingUploads();
+        ModelUploadSession.tickCurrent();
         ClientModelManager.flushPendingModels();
         ObjectPool.cleanup();
         refreshRate = client.getWindow().getRefreshRate();

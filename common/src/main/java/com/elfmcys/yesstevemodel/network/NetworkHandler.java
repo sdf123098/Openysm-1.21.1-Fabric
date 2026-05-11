@@ -79,6 +79,11 @@ public final class NetworkHandler {
         YSMChannel.register(23, C2SSwingArmPacket.class, C2SSwingArmPacket::encode, C2SSwingArmPacket::decode, C2SSwingArmPacket::handle, PacketDirection.PLAY_TO_SERVER);
         YSMChannel.register(51, S2CVersionCheckPacket.class, S2CVersionCheckPacket::encode, S2CVersionCheckPacket::decode, S2CVersionCheckPacket::handle, PacketDirection.PLAY_TO_CLIENT);
         YSMChannel.register(52, C2SVersionCheckPacket.class, C2SVersionCheckPacket::encode, C2SVersionCheckPacket::decode, C2SVersionCheckPacket::handle, PacketDirection.PLAY_TO_SERVER);
+        YSMChannel.register(70, C2SModelUploadStartPacket.class, C2SModelUploadStartPacket::encode, C2SModelUploadStartPacket::decode, C2SModelUploadStartPacket::handle, PacketDirection.PLAY_TO_SERVER);
+        YSMChannel.register(71, S2CModelUploadStartPacket.class, S2CModelUploadStartPacket::encode, S2CModelUploadStartPacket::decode, S2CModelUploadStartPacket::handle, PacketDirection.PLAY_TO_CLIENT);
+        YSMChannel.register(72, C2SModelUploadChunkPacket.class, C2SModelUploadChunkPacket::encode, C2SModelUploadChunkPacket::decode, C2SModelUploadChunkPacket::handle, PacketDirection.PLAY_TO_SERVER);
+        YSMChannel.register(73, C2SModelUploadFinishPacket.class, C2SModelUploadFinishPacket::encode, C2SModelUploadFinishPacket::decode, C2SModelUploadFinishPacket::handle, PacketDirection.PLAY_TO_SERVER);
+        YSMChannel.register(74, S2CModelUploadResultPacket.class, S2CModelUploadResultPacket::encode, S2CModelUploadResultPacket::decode, S2CModelUploadResultPacket::handle, PacketDirection.PLAY_TO_CLIENT);
     }
 
     public static void sendToServer(Object obj) {

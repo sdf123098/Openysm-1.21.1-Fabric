@@ -1,9 +1,8 @@
 package com.elfmcys.yesstevemodel.forge.capability;
-import com.elfmcys.yesstevemodel.capability.ProjectileCapability;
 
+import com.elfmcys.yesstevemodel.capability.ProjectileCapability;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.projectile.Projectile;
-
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.capabilities.Capability;
@@ -38,6 +37,6 @@ public class ProjectileCapabilityProvider implements ICapabilityProvider {
 
     @NotNull
     public <T> LazyOptional<T> getCapability(@NotNull Capability<T> capability, @Nullable Direction direction) {
-        return PROJECTILE_CAP.orEmpty(capability, this.capability == null ? LazyOptional.empty() : LazyOptional.of(() -> this.capability));
+        return PROJECTILE_CAP.orEmpty(capability, LazyOptional.of(this::getOrCreateCapability));
     }
 }

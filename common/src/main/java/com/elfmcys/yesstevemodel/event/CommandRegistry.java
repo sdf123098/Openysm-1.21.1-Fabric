@@ -12,6 +12,7 @@ import com.google.common.collect.Sets;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.Suggestions;
+import dev.architectury.event.events.client.ClientCommandRegistrationEvent;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import it.unimi.dsi.fastutil.objects.Object2ReferenceMap;
 import net.minecraft.commands.CommandSourceStack;
@@ -72,12 +73,17 @@ public final class CommandRegistry {
     });
 
     public static void register() {
+        ClientCommandRegistrationEvent.EVENT.register((dispatcher, context) -> {
+            if (!YesSteveModel.isAvailable()) {
+                return;
+            }
+            OpenYSMClientCommand.registerClientCommands(dispatcher);
+        });
         CommandRegistrationEvent.EVENT.register((dispatcher, registry, selection) -> {
             if (!YesSteveModel.isAvailable()) {
                 RootCommand.registerFallbackCommands(dispatcher);
                 return;
             }
-            OpenYSMClientCommand.registerClientCommands(dispatcher);
             RootCommand.registerCommands(dispatcher);
             if (!PlatformAPI.isServer()) {
                 RootClientCommand.registerClientCommands(dispatcher);

@@ -44,7 +44,7 @@ public final class NativeLibLoader {
         }
 
         String getResourcePath() {
-            return "/META-INF/native/" + resDir + "/" + fileName;
+            return "/natives/" + resDir + "/" + fileName;
         }
     }
 
@@ -121,8 +121,14 @@ public final class NativeLibLoader {
     }
 
     private static boolean loadNativeLib(String path) {
+        if(System.getProperty("OYSM_DISABLE_SMID") != null) {
+            return false;
+        }
         try {
+            long start = System.currentTimeMillis();
+            YesSteveModel.LOGGER.info("Begin load native library");
             System.load(path);
+            YesSteveModel.LOGGER.info("Successfully load native library in {}ms", System.currentTimeMillis() - start);
             return true;
         } catch (Throwable th) {
             YesSteveModel.LOGGER.error("Failed to load native lib: " + path, th);

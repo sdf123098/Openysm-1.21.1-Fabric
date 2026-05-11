@@ -8,7 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 
-public class DebugAnimationScreen extends Screen {
+public class DownloadScreen extends Screen {
 
     private final PlayerModelScreen parentScreen;
 
@@ -16,7 +16,7 @@ public class DebugAnimationScreen extends Screen {
 
     private int guiTop;
 
-    public DebugAnimationScreen(PlayerModelScreen modelScreen) {
+    public DownloadScreen(PlayerModelScreen modelScreen) {
         super(Component.literal("YSM Config GUI"));
         this.parentScreen = modelScreen;
     }

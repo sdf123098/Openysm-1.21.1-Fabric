@@ -1,10 +1,10 @@
 package rip.ysm.legacy;
 
+import com.elfmcys.yesstevemodel.util.DigestUtil;
 import com.google.common.collect.Maps;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import net.minecraft.resources.ResourceLocation;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -80,7 +80,7 @@ public final class YesModelUtils {
 
         byte[] md5 = ByteArrays.copy(data, 8, 16);
         byte[] modelFilesData = ByteArrays.copy(data, 24, data.length - 24);
-        if (!Arrays.equals(md5, DigestUtils.md5(modelFilesData))) {
+        if (!Arrays.equals(md5, DigestUtil.md5(modelFilesData))) {
             return Collections.emptyMap();
         }
 
@@ -148,7 +148,7 @@ public final class YesModelUtils {
     }
 
     private static byte[] getKeyFromMd5(byte[] fileData) {
-        byte[] md5 = DigestUtils.md5(fileData);
+        byte[] md5 = DigestUtil.md5(fileData);
         Random random = new Random(toLong(md5));
         byte[] keys = new byte[16];
         random.nextBytes(keys);

@@ -59,7 +59,7 @@ dependencies {
     modCompileOnly ":superbwarfare:1.20.1-0.8.8-final-6a6b54795"
     modCompileOnly ":realcamera:1.20.1-forge-0.6.11a-beta"
     modCompileOnly ":SlashBladeResharped:1.20.1-0.1.4-patched"
-    modCompileOnly ":SlashBlade:1.20.1-0.1.2"
+    modCompileOnly ":x_SlashBlade:1.20.1-0.1.2"
     modCompileOnly ":oculus:mc1.20.1-1.8.0"
     modCompileOnly ":oculus_legacy:mc1.20.1-1.6.13"
     modCompileOnly ":geckolib-forge:1.20.1-4.8.3"

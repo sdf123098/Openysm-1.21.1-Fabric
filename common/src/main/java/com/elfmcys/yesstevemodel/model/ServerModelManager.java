@@ -296,17 +296,28 @@ public final class ServerModelManager {
         try (DirectoryStream<Path> groups = Files.newDirectoryStream(BUILT)) {
             for (Path group : groups) {
                 if (!Files.isDirectory(group)) continue;
+                boolean hasRemainingModels = false;
                 try (DirectoryStream<Path> models = Files.newDirectoryStream(group)) {
                     for (Path model : models) {
                         if (!Files.isDirectory(model)) continue;
+
                         String matchPath = "assets/yes_steve_model/builtin/" + group.getFileName() + "/" + model.getFileName() + "/";
+                        boolean deleted = false;
                         for (Pattern rule : rules) {
                             if (rule.matcher(matchPath).find()) {
                                 deleteRecursively(model);
+                                deleted = true;
                                 break;
                             }
                         }
+
+                        if (!deleted) {
+                            hasRemainingModels = true;
+                        }
                     }
+                }
+                if (!hasRemainingModels) {
+                    deleteRecursively(group);
                 }
             }
         } catch (IOException ignored) {

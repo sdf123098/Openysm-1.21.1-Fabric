@@ -3,7 +3,6 @@ package com.elfmcys.yesstevemodel.geckolib3.geo.render.built;
 import com.elfmcys.yesstevemodel.geckolib3.core.molang.util.StringPool;
 import com.elfmcys.yesstevemodel.geckolib3.geo.animated.AnimatedGeoModel;
 import com.elfmcys.yesstevemodel.resource.models.GeometryDescription;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntLists;
@@ -15,7 +14,7 @@ import org.joml.Vector3f;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.*;
+import java.util.List;
 
 /**
  * Bedrock的.geo模型文件
@@ -122,7 +121,7 @@ public class GeoModel {
     public static native void nDestroyModelCache(long handle);
 
     public static native void nComputeModelVertices(
-            long handle, VertexConsumer vertexConsumer,
+            long handle, Object vertexConsumer,
             float[] matrixTransfer, float[] animTransfer,
             int renderPartMask, int packedLight, int packedOverlay,
             float r, float g, float b, float a);
@@ -176,7 +175,7 @@ public class GeoModel {
         }
 
         buffer.position(0);
-//        this.nativeModelHandle = nInitModelCache(buffer);
+        this.nativeModelHandle = nInitModelCache(buffer);
     }
 
     public void freeNativeCache() {

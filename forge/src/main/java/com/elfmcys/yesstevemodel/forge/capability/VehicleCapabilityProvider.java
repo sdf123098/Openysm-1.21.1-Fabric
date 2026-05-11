@@ -1,9 +1,8 @@
 package com.elfmcys.yesstevemodel.forge.capability;
-import com.elfmcys.yesstevemodel.capability.VehicleCapability;
 
+import com.elfmcys.yesstevemodel.capability.VehicleCapability;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
-
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.capabilities.Capability;
@@ -17,7 +16,7 @@ import org.jetbrains.annotations.Nullable;
 @OnlyIn(Dist.CLIENT)
 public class VehicleCapabilityProvider implements ICapabilityProvider {
 
-    public static Capability<VehicleCapability> VEHICLE_CAP = CapabilityManager.get(new CapabilityToken<VehicleCapability>() {
+    public static Capability<VehicleCapability> VEHICLE_CAP = CapabilityManager.get(new CapabilityToken<>() {
     });
 
     private VehicleCapability capability;
@@ -38,8 +37,6 @@ public class VehicleCapabilityProvider implements ICapabilityProvider {
 
     @NotNull
     public <T> LazyOptional<T> getCapability(@NotNull Capability<T> capability, @Nullable Direction direction) {
-        return VEHICLE_CAP.orEmpty(capability, this.capability == null ? LazyOptional.empty() : LazyOptional.of(() -> {
-            return this.capability;
-        }));
+        return VEHICLE_CAP.orEmpty(capability, LazyOptional.of(this::getOrCreateCapability));
     }
 }
