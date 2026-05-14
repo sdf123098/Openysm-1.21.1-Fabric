@@ -2,7 +2,6 @@ package rip.ysm.gpu;
 
 import com.elfmcys.yesstevemodel.NativeLibLoader;
 import com.mojang.blaze3d.systems.RenderSystem;
-import dev.architectury.platform.Platform;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GLCapabilities;
@@ -37,10 +36,6 @@ public final class GpuCapability {
         String osName = System.getProperty("os.name", "").toLowerCase();
         if (osName.contains("mac") || osName.contains("darwin")) {
             reason = "macOS GL is capped at 4.1 and lacks GL_ARB_shader_storage_buffer_object";
-            return;
-        }
-        if (Platform.isModLoaded("iris") || Platform.isModLoaded("oculus")) {
-            reason = "Iris/Oculus shader pack mod present";
             return;
         }
 

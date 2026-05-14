@@ -100,11 +100,9 @@ public class YSMClientMapper {
                 maxV = Math.max(maxV, face.v[i]);
             }
 
-
-
-            boolean isAllZero = true;
-            boolean hasTranslucent = false;
             boolean hasValidImage = false;
+            boolean faceHasVisiblePixel = false;
+            boolean faceHasTransparentPixel = false;
 
             for (int i = 0; i < images.length; i++) {
                 if (images[i] == null) continue;
@@ -127,26 +125,52 @@ public class YSMClientMapper {
                 startY = Math.max(0, Math.min(startY, imgH - 1));
                 endY = Math.max(0, Math.min(endY, imgH - 1));
 
+                boolean imageHasVisiblePixel = false;
+                boolean imageHasTransparentPixel = false;
+                boolean imageHasColoredTranslucentPixel = false;
+
                 for (int x = startX; x <= endX; x++) {
                     for (int y = startY; y <= endY; y++) {
-                        int alpha = (img.getRGB(x, y) >> 24) & 0xFF;
+                        int alpha = (img.getRGB(x, y) >>> 24) & 0xFF;
+
                         if (alpha > 0) {
-                            isAllZero = false;
+                            imageHasVisiblePixel = true;
+
                             if (alpha < 255) {
-                                hasTranslucent = true; //半透明
-                                if (!results[i]) {
-                                    results[i] = true;
-//                                    remaining--;
-                                }
+                                imageHasColoredTranslucentPixel = true;
                             }
                         }
+
+                        if (alpha < 255) {
+                            imageHasTransparentPixel = true;
+                        }
+
+                        if (imageHasVisiblePixel && imageHasTransparentPixel && imageHasColoredTranslucentPixel) {
+                            break;
+                        }
+                    }
+
+                    if (imageHasVisiblePixel && imageHasTransparentPixel && imageHasColoredTranslucentPixel) {
+                        break;
+                    }
+                }
+
+                if (imageHasVisiblePixel) {
+                    faceHasVisiblePixel = true;
+
+                    if (imageHasTransparentPixel) {
+                        faceHasTransparentPixel = true;
+                    }
+
+                    if (imageHasColoredTranslucentPixel) {
+                        results[i] = true;
                     }
                 }
             }
 
             if (!hasValidImage) return STATE_OPAQUE;
-            if (isAllZero) return STATE_INVISIBLE;
-            if (hasTranslucent) return STATE_TRANSLUCENT;
+            if (!faceHasVisiblePixel) return STATE_INVISIBLE;
+            if (faceHasTransparentPixel) return STATE_TRANSLUCENT;
             return STATE_OPAQUE;
         }
     }
@@ -375,10 +399,12 @@ public class YSMClientMapper {
                     isZeroThickness = false;
                 }
 
-                if (isZeroThickness && validFaceCount > 1) {
+                if (hasTranslucentFace) {
+                    bc.cullable = false;
+                } else if (isZeroThickness && validFaceCount > 1) {
                     bc.cullable = true;
                 } else {
-                    bc.cullable = !hasTranslucentFace && validFaceCount >= 5;
+                    bc.cullable = validFaceCount >= 5;
                 }
 
                 if (!bc.quads.isEmpty()) {

@@ -28,8 +28,9 @@ public class SBackpackCompat {
     private static boolean INCOMPATIBLE_VERSION;
 
     public static void init() {
+        if (!GeneralConfig.SOPHISTICATEDBACKPACK.get()) return;
         ModFileInfo modFileById;
-        if (!GeneralConfig.SOPHISTICATEDBACKPACK.get() && (modFileById = LoadingModList.get().getModFileById(MOD_ID)) != null) {
+        if ((modFileById = LoadingModList.get().getModFileById(MOD_ID)) != null) {
             if (modFileById.getMods().get(0).getVersion().compareTo(MIN_VERSION) >= 0) {
                 IS_LOADED = true;
             } else {

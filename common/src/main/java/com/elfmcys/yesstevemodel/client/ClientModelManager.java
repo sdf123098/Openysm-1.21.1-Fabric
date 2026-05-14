@@ -2,29 +2,31 @@ package com.elfmcys.yesstevemodel.client;
 
 import com.elfmcys.yesstevemodel.NativeLibLoader;
 import com.elfmcys.yesstevemodel.YesSteveModel;
+import com.elfmcys.yesstevemodel.client.gui.IGuiWidget;
 import com.elfmcys.yesstevemodel.client.model.ModelAssembly;
+import com.elfmcys.yesstevemodel.client.model.ModelAssemblyFactory;
 import com.elfmcys.yesstevemodel.client.model.ProjectileModelBundle;
 import com.elfmcys.yesstevemodel.client.model.VehicleModelBundle;
-import com.elfmcys.yesstevemodel.client.upload.UploadManager;
-import com.elfmcys.yesstevemodel.client.model.ModelAssemblyFactory;
-import com.elfmcys.yesstevemodel.client.gui.IGuiWidget;
 import com.elfmcys.yesstevemodel.client.texture.OuterFileTexture;
 import com.elfmcys.yesstevemodel.client.upload.IResourceLocatable;
+import com.elfmcys.yesstevemodel.client.upload.UploadManager;
 import com.elfmcys.yesstevemodel.model.ServerModelManager;
 import com.elfmcys.yesstevemodel.network.NetworkHandler;
 import com.elfmcys.yesstevemodel.network.message.C2SModelSyncPayload;
-import com.elfmcys.yesstevemodel.resource.*;
-import com.elfmcys.yesstevemodel.resource.pojo.RawYsmModel;
+import com.elfmcys.yesstevemodel.resource.YSMBinaryDeserializer;
+import com.elfmcys.yesstevemodel.resource.YSMClientMapper;
+import com.elfmcys.yesstevemodel.resource.YSMFolderDeserializer;
 import com.elfmcys.yesstevemodel.resource.models.ModelPackData;
+import com.elfmcys.yesstevemodel.resource.pojo.RawYsmModel;
+import com.elfmcys.yesstevemodel.util.FileTypeUtil;
+import com.elfmcys.yesstevemodel.util.YSMThreadPool;
 import com.elfmcys.yesstevemodel.util.data.OrderedStringMap;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import rip.ysm.security.YSMClientCache;
-import rip.ysm.security.YsmCrypt;
-import com.elfmcys.yesstevemodel.util.*;
 import com.mojang.blaze3d.systems.RenderSystem;
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.Object2ReferenceMaps;
 import it.unimi.dsi.fastutil.objects.Object2ReferenceOpenHashMap;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.network.Connection;
@@ -34,11 +36,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.message.StringFormattedMessage;
 import org.jetbrains.annotations.Nullable;
-
 import rip.ysm.security.YSMByteBuf;
-import io.netty.buffer.Unpooled;
+import rip.ysm.security.YSMClientCache;
+import rip.ysm.security.YsmCrypt;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -58,10 +61,7 @@ public class ClientModelManager {
     private static String currentCacheFolderName;
     private static final AtomicInteger pendingModelsCount = new AtomicInteger(0);
 
-    private static final ThreadPoolExecutor MODEL_PARSE_EXECUTOR = new ThreadPoolExecutor(
-            1, 1,
-            0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<>(),
+    private static final ThreadPoolExecutor modelPhraseExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(),
             r -> {
                 Thread t = new Thread(r, "YSM-Model-Parse-Thread");
                 t.setDaemon(true);
@@ -137,13 +137,13 @@ public class ClientModelManager {
                 defaultPath = Paths.get(uri);
             }
 
-            try( YSMFolderDeserializer deserializer = new YSMFolderDeserializer(defaultPath)) {
-            RawYsmModel rawModel = deserializer.deserialize();
+            try (YSMFolderDeserializer deserializer = new YSMFolderDeserializer(defaultPath)) {
+                RawYsmModel rawModel = deserializer.deserialize();
 
-            ClientModelInfo  parsedBundle = YSMClientMapper.buildParsedBundle(rawModel, "default");
+                ClientModelInfo parsedBundle = YSMClientMapper.buildParsedBundle(rawModel, "default");
 
 
-            onModelDataReceived(parsedBundle, "default", true, false);
+                onModelDataReceived(parsedBundle, "default", true, false);
                 YesSteveModel.LOGGER.info("[YSM] Successfully pushed Default Model to render queue.");
             } catch (Exception e) {
                 YesSteveModel.LOGGER.error("[YSM] Failed to dispatch Default Model", e);
@@ -175,7 +175,7 @@ public class ClientModelManager {
             } else if (syncStep == 2) {
                 decrypted = YsmCrypt.decrypt(packetBytes, lastKey);
                 if (decrypted != null) {
-                    try (YSMByteBuf buf = new YSMByteBuf(Unpooled.wrappedBuffer(decrypted))){
+                    try (YSMByteBuf buf = new YSMByteBuf(Unpooled.wrappedBuffer(decrypted))) {
                         handlePacket03(buf);
                     }
                 }
@@ -216,7 +216,9 @@ public class ClientModelManager {
         }
     }
 
-    private record ModelHash(long hash1, long hash2) {}
+    private record ModelHash(long hash1, long hash2) {
+    }
+
     private static final List<ModelHash> cachedModelHashes = new ArrayList<>();
 
     private static void handlePacket03(YSMByteBuf buf) throws Exception {
@@ -274,7 +276,7 @@ public class ClientModelManager {
                     isModelReadyList.add(isAuth);
                 } else {
                     // 命中缓存
-                    MODEL_PARSE_EXECUTOR.submit(() -> {
+                    modelPhraseExecutor.submit(() -> {
                         if (clientKey == null) return;
                         try {
                             byte[] fileBytes = Files.readAllBytes(cachedFile.toPath());
@@ -386,7 +388,7 @@ public class ClientModelManager {
         }
 
         if (pendingModelsCount.get() == 0) {
-            MODEL_PARSE_EXECUTOR.submit(() -> {
+            modelPhraseExecutor.submit(() -> {
                 YesSteveModel.LOGGER.info("[YSM] All models loaded from local cache. Handshake complete!");
                 onSyncComplete();
             });
@@ -425,7 +427,7 @@ public class ClientModelManager {
         if (ctx.bytesReceived >= totalSize) {
             byte[] fileBuffer = ctx.fileBuffer;
 
-            MODEL_PARSE_EXECUTOR.submit(() -> {
+            modelPhraseExecutor.submit(() -> {
                 if (clientKey == null) return;
                 try {
                     String folder = currentCacheFolderName != null ? currentCacheFolderName : "default_cache";
@@ -508,7 +510,7 @@ public class ClientModelManager {
         serverKey = null;
         clientKey = null;
 
-        MODEL_PARSE_EXECUTOR.getQueue().clear();
+        modelPhraseExecutor.getQueue().clear();
 
         currentCacheFolderName = null;
         pendingModelsCount.set(0);
@@ -533,8 +535,11 @@ public class ClientModelManager {
         pendingModelQueue.clear();
 
         forEachGuiWidget(l -> {
-            try { l.onSyncBegin(); }
-            catch (Throwable t) { t.printStackTrace(); }
+            try {
+                l.onSyncBegin();
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
         });
     }
 
@@ -572,7 +577,10 @@ public class ClientModelManager {
             model = reg.get("default");
             if (model == null) {
                 for (ModelAssembly v : reg.values()) {
-                    if (v != null) { model = v; break; }
+                    if (v != null) {
+                        model = v;
+                        break;
+                    }
                 }
             }
             if (model != null) {
@@ -719,7 +727,7 @@ public class ClientModelManager {
                     for (ModelAssembly assembly : removed) {
                         for (AbstractTexture tex : assembly.getTextures())
                             UploadManager.removeTexture(tex);
-                        if(NativeLibLoader.isLoaded()) {
+                        if (NativeLibLoader.isLoaded()) {
                             for (Map.Entry<ResourceLocation, ProjectileModelBundle> entry : assembly.getProjectileModels().entrySet()) {
                                 entry.getValue().getModel().freeNativeCache();
                             }

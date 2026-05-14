@@ -1,56 +1,49 @@
 package com.elfmcys.yesstevemodel.client.gui;
 
-import com.elfmcys.yesstevemodel.client.gui.button.ConfigCheckBoxForge;
-import com.elfmcys.yesstevemodel.client.gui.button.FlatColorButton;
-import com.elfmcys.yesstevemodel.client.gui.button.LoadingStateButton;
-import com.elfmcys.yesstevemodel.client.gui.button.RangedSliderWidget;
 import com.elfmcys.yesstevemodel.config.ExtraPlayerRenderConfig;
 import com.elfmcys.yesstevemodel.config.GeneralConfig;
 import com.elfmcys.yesstevemodel.config.LoadingStateConfig;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
+import rip.ysm.gui.Option;
+import rip.ysm.gui.OptionGroup;
+import rip.ysm.gui.OptionScreen;
+import rip.ysm.gui.components.BooleanOptionRow;
+import rip.ysm.gui.components.EnumOptionRow;
+import rip.ysm.gui.components.SliderOptionRow;
 
-public class ExtraPlayerConfigScreen extends Screen {
-
-    @Nullable
-    private final PlayerModelScreen parentScreen;
+public class ExtraPlayerConfigScreen extends OptionScreen {
 
     public ExtraPlayerConfigScreen(@Nullable PlayerModelScreen modelScreen) {
-        super(Component.literal("YSM Config GUI"));
-        this.parentScreen = modelScreen;
+        super(Component.literal("OpenYSM"), modelScreen);
     }
 
-    public void init() {
-        int guiLeft = (this.width - 420) / 2;
-        int guiTop = (this.height - 265) / 2;
-        addRenderableWidget(new FlatColorButton(guiLeft + 5, guiTop + 2, 80, 18, Component.translatable("gui.yes_steve_model.model.return"), button -> {
-            Minecraft.getInstance().setScreen(this.parentScreen);
-        }));
-        addRenderableWidget(new RangedSliderWidget(guiLeft + 5, guiTop + 24, 320, 18, Component.translatable("gui.yes_steve_model.config.sound_volume"), Component.literal("%"), 0.0d, 100.0d, GeneralConfig.SOUND_VOLUME.get().doubleValue(), 1D, 0, true) {
-            @Override
-            protected void applyValue() {
-                GeneralConfig.SOUND_VOLUME.set(Double.valueOf(getValue()));
-            }
-        });
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 45, "disable_self_model", GeneralConfig.DISABLE_SELF_MODEL));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 67, "disable_other_model", GeneralConfig.DISABLE_OTHER_MODEL));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 89, "print_animation_roulette_msg", GeneralConfig.PRINT_ANIMATION_ROULETTE_MSG));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 111, "disable_self_hands", GeneralConfig.DISABLE_SELF_HANDS));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 133, "disable_player_render", ExtraPlayerRenderConfig.DISABLE_PLAYER_RENDER));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 155, "disable_projectile_model", GeneralConfig.DISABLE_PROJECTILE_MODEL));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 177, "disable_vehicle_model", GeneralConfig.DISABLE_VEHICLE_MODEL));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 199, "disable_external_first_person_anim", GeneralConfig.DISABLE_EXTERNAL_FP_ANIM));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 221, "disable_loading_state_screen", LoadingStateConfig.DISABLE_LOADING_STATE_SCREEN));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 243, "use_compatibility_renderer", GeneralConfig.USE_COMPATIBILITY_RENDERER));
-        addRenderableWidget(new LoadingStateButton(guiLeft + 5, guiTop + 264));
-        addRenderableWidget(new ConfigCheckBoxForge(guiLeft + 5, guiTop + 285, "use_gpu_renderer", GeneralConfig.USE_GPU_RENDERER));
-    }
+    @Override
+    protected void registerGroups() {
+        OptionGroup general = new OptionGroup("general")
+                .add(new SliderOptionRow(0, 0, 0, 22, Option.ofDouble("sound_volume", GeneralConfig.SOUND_VOLUME), 0.0d, 100.0d, 1.0d, "%"))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_self_model", GeneralConfig.DISABLE_SELF_MODEL)))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_other_model", GeneralConfig.DISABLE_OTHER_MODEL)))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_self_hands", GeneralConfig.DISABLE_SELF_HANDS)));
 
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(guiGraphics);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        OptionGroup rendering = new OptionGroup("rendering")
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_player_render", ExtraPlayerRenderConfig.DISABLE_PLAYER_RENDER)))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_projectile_model", GeneralConfig.DISABLE_PROJECTILE_MODEL)))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_vehicle_model", GeneralConfig.DISABLE_VEHICLE_MODEL)))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_external_first_person_anim", GeneralConfig.DISABLE_EXTERNAL_FP_ANIM)));
+
+        OptionGroup performance = new OptionGroup("performance")
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("use_compatibility_renderer", GeneralConfig.USE_COMPATIBILITY_RENDERER)))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("use_gpu_renderer", GeneralConfig.USE_GPU_RENDERER)));
+
+        OptionGroup misc = new OptionGroup("misc")
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("print_animation_roulette_msg", GeneralConfig.PRINT_ANIMATION_ROULETTE_MSG)))
+                .add(new BooleanOptionRow(0, 0, 0, 22, Option.ofBoolean("disable_loading_state_screen", LoadingStateConfig.DISABLE_LOADING_STATE_SCREEN)))
+                .add(new EnumOptionRow<>(0, 0, 0, 22, Option.ofEnum("loading_state_position", LoadingStateConfig.LOADING_STATE_POSITION), LoadingStateConfig.Position.values()));
+
+        groups.add(general);
+        groups.add(rendering);
+        groups.add(performance);
+        groups.add(misc);
     }
 }

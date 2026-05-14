@@ -19,6 +19,7 @@ import rip.ysm.compat.oculus.OculusCompat;
 import rip.ysm.compat.optifine.OptiFineDetector;
 import rip.ysm.gpu.GpuCapability;
 import rip.ysm.gpu.GpuRenderPath;
+import rip.ysm.gpu.IrisRenderPath;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -46,8 +47,14 @@ public class NativeModelRenderer {
                 return;
             }
 
-            if (GpuRenderPath.tryRender(model, pose, boneParams, renderPartMask, packedLight, packedOverlay, red, green, blue, alpha, textureLocation)) {
-                return;
+            if (OculusCompat.isShaderPackInUse() && !isPreview) {
+                if (IrisRenderPath.tryRender(model, pose, boneParams, renderPartMask, packedLight, packedOverlay, red, green, blue, alpha, textureLocation)) {
+                    return;
+                }
+            } else {
+                if (GpuRenderPath.tryRender(model, pose, boneParams, stateBuffer, renderPartMask, packedLight, packedOverlay, red, green, blue, alpha, textureLocation)) {
+                    return;
+                }
             }
         }
 
@@ -121,7 +128,7 @@ public class NativeModelRenderer {
         boolean[] boneVisible = new boolean[mesh.bakedBones.size()];
 
         for (int i = 0; i < mesh.bakedBones.size(); i++) {
-            calculateBoneMatrix(i, mesh.bakedBones, boneParams, boneLocalTransforms, boneVisible, identityMat);
+            calculateBoneMatrix(i, mesh.bakedBones, boneParams, boneLocalTransforms, boneVisible, identityMat, stateBuffer);
         }
 
         for (int i = 0; i < mesh.bakedBones.size(); i++) {
@@ -165,7 +172,7 @@ public class NativeModelRenderer {
         }
     }
 
-    private static Matrix4f calculateBoneMatrix(int idx, java.util.List<GeoModel.BakedBone> bones, float[] boneParams, Matrix4f[] cache, boolean[] visibleCache, Matrix4f rootPose) {
+    private static Matrix4f calculateBoneMatrix(int idx, java.util.List<GeoModel.BakedBone> bones, float[] boneParams, Matrix4f[] cache, boolean[] visibleCache, Matrix4f rootPose, float[] stateBuffer) {
         if (cache[idx] != null) return cache[idx];
 
         GeoModel.BakedBone bone = bones.get(idx);
@@ -173,7 +180,7 @@ public class NativeModelRenderer {
         boolean isVisible = true;
 
         if (bone.parentIdx != -1) {
-            parentMatrix = calculateBoneMatrix(bone.parentIdx, bones, boneParams, cache, visibleCache, rootPose);
+            parentMatrix = calculateBoneMatrix(bone.parentIdx, bones, boneParams, cache, visibleCache, rootPose, stateBuffer);
             // 如果父骨骼不可見，子骨骼必然跟著不可見
             if (!visibleCache[bone.parentIdx]) {
                 isVisible = false;
@@ -220,6 +227,16 @@ public class NativeModelRenderer {
 
         if (animSx != 1.0f || animSy != 1.0f || animSz != 1.0f) {
             localMat.scale(animSx, animSy, animSz);
+        }
+
+        if (unk3 == 1.0F && stateBuffer != null && isVisible) {
+            int offset = idx * 4;
+            // bone pivot abs
+            if (offset + 2 < stateBuffer.length) {
+                stateBuffer[offset + 0] =-localMat.m30() * 16;
+                stateBuffer[offset + 1] = localMat.m31() * 16;
+                stateBuffer[offset + 2] = localMat.m32() * 16;
+            }
         }
 
         localMat.translate(-bone.pivotX / 16f, -bone.pivotY / 16f, -bone.pivotZ / 16f);

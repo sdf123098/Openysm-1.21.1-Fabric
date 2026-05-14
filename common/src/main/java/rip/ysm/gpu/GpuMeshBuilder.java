@@ -51,6 +51,9 @@ public final class GpuMeshBuilder {
         GL20.glEnableVertexAttribArray(3);
         GL30.glVertexAttribIPointer(3, 1, GL15.GL_UNSIGNED_SHORT, 32, 24L);
 
+        GL20.glEnableVertexAttribArray(4);
+        GL20.glVertexAttribPointer(4, 1, GL11.GL_UNSIGNED_BYTE, false, 32, 27L);
+
         GL30.glBindVertexArray(0);
         GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
         GlStateManager._glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, 0);

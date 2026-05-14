@@ -231,7 +231,7 @@ public class RawYsmModel {
         public boolean allCutout = false;
         public boolean disablePreviewRotation = false;
         public boolean guiNoLighting = false;
-        public boolean mergeMultilineExpr = true; // 預設true
+        public boolean mergeMultilineExpr = false; // TODO:什么时候默认为true
 
         public String guiForeground = "";
         public String guiBackground = "";

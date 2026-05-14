@@ -1,4 +1,4 @@
-#version 150 core
+#version 430 core
 #extension GL_ARB_shader_storage_buffer_object : require
 #extension GL_ARB_shading_language_420pack : require
 #extension GL_ARB_explicit_attrib_location : require
@@ -7,6 +7,10 @@ layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec2 a_uv;
 layout(location = 2) in vec4 a_normal;
 layout(location = 3) in uint a_boneId;
+layout(location = 4) in float a_cullable;
+
+
+out float v_cullable;
 
 struct BoneData {
     mat4 transform;
@@ -71,4 +75,5 @@ void main() {
     v_color = minecraft_mix_light(u_light0, u_light1, nrm, u_color);
     v_vertexDistance = fogDistance(eyePos.xyz, u_fogShape);
     v_packedLight = b.packedLight;
+    v_cullable = a_cullable;
 }

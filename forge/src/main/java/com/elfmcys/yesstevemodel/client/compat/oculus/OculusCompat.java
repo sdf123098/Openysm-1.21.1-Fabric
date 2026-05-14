@@ -1,7 +1,7 @@
 package com.elfmcys.yesstevemodel.client.compat.oculus;
 
-import com.elfmcys.yesstevemodel.client.texture.OuterFileTexture;
 import com.elfmcys.yesstevemodel.YesSteveModel;
+import com.elfmcys.yesstevemodel.client.texture.OuterFileTexture;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.coderbot.iris.texture.pbr.loader.PBRTextureLoader;
 import net.coderbot.iris.texture.pbr.loader.PBRTextureLoaderRegistry;
@@ -58,6 +58,14 @@ public class OculusCompat {
     }
 
     public static boolean isPBRActive() {
+        return IS_LOADED && IrisApi.getInstance().isRenderingShadowPass();
+    }
+
+    public static boolean isShaderPackInUse() {
+        return IS_LOADED && IrisApi.getInstance().isShaderPackInUse();
+    }
+
+    public static boolean isRenderingShadowPass() {
         return IS_LOADED && IrisApi.getInstance().isRenderingShadowPass();
     }
 

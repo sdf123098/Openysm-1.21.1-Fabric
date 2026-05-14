@@ -17,4 +17,12 @@ public final class OculusCompatImpl {
     public static void updatePBRState() {
         OculusCompat.updatePBRState();
     }
+
+    public static boolean isShaderPackInUse() {
+        return OculusCompat.isShaderPackInUse();
+    }
+
+    public static boolean isRenderingShadowPass() {
+        return OculusCompat.isRenderingShadowPass();
+    }
 }

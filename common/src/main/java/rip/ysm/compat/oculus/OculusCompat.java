@@ -21,4 +21,14 @@ public final class OculusCompat {
     public static void updatePBRState() {
         throw new AssertionError();
     }
+
+    @ExpectPlatform
+    public static boolean isShaderPackInUse() {
+        throw new AssertionError();
+    }
+
+    @ExpectPlatform
+    public static boolean isRenderingShadowPass() {
+        throw new AssertionError();
+    }
 }

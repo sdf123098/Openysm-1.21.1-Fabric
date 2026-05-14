@@ -1,46 +1,50 @@
 package com.elfmcys.yesstevemodel.model;
 
+import com.elfmcys.yesstevemodel.YesSteveModel;
+import com.elfmcys.yesstevemodel.capability.AuthModelsCapability;
 import com.elfmcys.yesstevemodel.capability.ModelInfoCapability;
 import com.elfmcys.yesstevemodel.client.ExportResult;
-import com.elfmcys.yesstevemodel.model.format.*;
+import com.elfmcys.yesstevemodel.config.ServerConfig;
+import com.elfmcys.yesstevemodel.mixin.ConnectionAccessor;
+import com.elfmcys.yesstevemodel.mixin.ServerCommonPacketListenerImplAccessor;
+import com.elfmcys.yesstevemodel.model.format.ServerAnimationInfo;
+import com.elfmcys.yesstevemodel.model.format.ServerModelData;
+import com.elfmcys.yesstevemodel.model.format.ServerModelInfo;
+import com.elfmcys.yesstevemodel.model.format.UUIDComponentData;
+import com.elfmcys.yesstevemodel.network.NetworkHandler;
+import com.elfmcys.yesstevemodel.network.message.S2CModelSyncPayload;
+import com.elfmcys.yesstevemodel.network.message.S2CSyncAuthModelsPacket;
 import com.elfmcys.yesstevemodel.resource.YSMBinaryDeserializer;
 import com.elfmcys.yesstevemodel.resource.YSMBinarySerializer;
 import com.elfmcys.yesstevemodel.resource.YSMClientMapper;
 import com.elfmcys.yesstevemodel.resource.YSMFolderDeserializer;
 import com.elfmcys.yesstevemodel.resource.pojo.RawYsmModel;
-import com.google.common.util.concurrent.RateLimiter;
-import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
-import rip.ysm.legacy.YesModelUtils;
-import rip.ysm.security.YsmCrypt;
-import rip.ysm.security.YSMByteBuf;
-import com.elfmcys.yesstevemodel.YesSteveModel;
-import com.elfmcys.yesstevemodel.capability.AuthModelsCapability;
-import com.elfmcys.yesstevemodel.config.ServerConfig;
-import com.elfmcys.yesstevemodel.network.NetworkHandler;
-import com.elfmcys.yesstevemodel.network.message.S2CSyncAuthModelsPacket;
-import com.elfmcys.yesstevemodel.network.message.S2CModelSyncPayload;
-import com.elfmcys.yesstevemodel.util.*;
+import com.elfmcys.yesstevemodel.util.YSMNativeHelper;
+import com.elfmcys.yesstevemodel.util.YSMThreadPool;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dev.architectury.platform.Platform;
+import dev.architectury.utils.GameInstance;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.floats.FloatReferencePair;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.network.Connection;
 import net.minecraft.network.PacketSendListener;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
-import dev.architectury.platform.Platform;
-import dev.architectury.utils.GameInstance;
-import com.elfmcys.yesstevemodel.mixin.ConnectionAccessor;
-import com.elfmcys.yesstevemodel.mixin.ServerCommonPacketListenerImplAccessor;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import rip.ysm.legacy.YesModelUtils;
+import rip.ysm.security.YSMByteBuf;
+import rip.ysm.security.YsmCrypt;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -103,28 +107,28 @@ public final class ServerModelManager {
     public static byte[] serverKey;
     private static volatile boolean initialized = false;
 
-    private static RateLimiter BANDWIDTH_LIMITER = null;
-    private static Semaphore THREAD_LIMITER = null;
+    private static RateLimiter bandwidthLimiter = null;
+    private static Semaphore threadLimiter = null;
     private static boolean limitsInitialized = false;
 
-    private static void ensureLimitsInitialized() {
+    private static void initRateLimit() {
         if (!limitsInitialized) {
             try {
                 int mbps = ServerConfig.BANDWIDTH_LIMIT.get();
                 double bytesPerSec = Math.max(1.0, mbps * 131072.0);
-                BANDWIDTH_LIMITER = RateLimiter.create(bytesPerSec);
+                bandwidthLimiter = RateLimiter.create(bytesPerSec);
 
                 int threads = ServerConfig.THREAD_COUNT.get();
                 if (threads <= 0) {
                     threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
                 }
-                THREAD_LIMITER = new Semaphore(threads);
+                threadLimiter = new Semaphore(threads);
 
                 limitsInitialized = true;
             } catch (Exception e) {
                 YesSteveModel.LOGGER.error("[YSM] Failed to initialize limits from config", e);
-                BANDWIDTH_LIMITER = RateLimiter.create(5 * 131072.0);
-                THREAD_LIMITER = new Semaphore(Math.max(2, Runtime.getRuntime().availableProcessors() - 1));
+                bandwidthLimiter = RateLimiter.create(5 * 131072.0);
+                threadLimiter = new Semaphore(Math.max(2, Runtime.getRuntime().availableProcessors() - 1));
                 limitsInitialized = true;
             }
         }
@@ -671,7 +675,7 @@ public final class ServerModelManager {
     }
 
     public static void nativeSyncModels(UUID[] uuids, String[] playerNames, String[] modelIds, Object callback) {
-        ensureLimitsInitialized();
+        initRateLimit();
         YSMThreadPool.submitSync(() -> {
             try {
                 MinecraftServer currentServer = GameInstance.getServer();
@@ -795,7 +799,7 @@ public final class ServerModelManager {
     private static void sendPacket05(UUID uuid, PlayerSyncState state, List<long[]> requestedHashes) {
         YSMThreadPool.submitSync(() -> {
             try {
-                THREAD_LIMITER.acquire();
+                threadLimiter.acquire();
 
                 PendingTransfer transfer = new PendingTransfer();
 
@@ -833,7 +837,7 @@ public final class ServerModelManager {
                             outBuf.getRawBuf().writeBytes(fileData, offset, length);
                             YsmCrypt.EncryptedPacket result = YsmCrypt.encrypt(outBuf.toArray(), state.key1, false);
 
-                                BANDWIDTH_LIMITER.acquire(result.data().length);
+//                            bandwidthLimiter.acquire(result.data().length); //TODO
 
 
                             // Stream chunks
@@ -849,7 +853,7 @@ public final class ServerModelManager {
             } catch (Exception e) {
                 YesSteveModel.LOGGER.error("Failed to send model chunks to " + uuid, e);
             } finally {
-                THREAD_LIMITER.release();
+                threadLimiter.release();
             }
         });
     }
